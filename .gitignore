@@ -1,0 +1,56 @@
+# Build directories
+build/
+*/build/
+
+# ESP-IDF specific
+sdkconfig.old
+dependencies.lock
+
+# Compiled binaries
+*.bin
+*.elf
+*.map
+
+# CMake
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Log files
+*.log
+log/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# Ableton Live specific
+*.als.backup
+Backup/
+*.asd
+
+# Max/MSP patches (keep only source .amxd files, exclude generated files)
+*.maxpat.orig
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node.js (if any)
+node_modules/
+npm-debug.log*
