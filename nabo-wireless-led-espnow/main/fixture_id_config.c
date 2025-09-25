@@ -8,6 +8,11 @@
 fixture_id_config_t fixture_id_config[NUM_FIXTURES] = {
     {.fixture_id = 1, .mac_adress = {0x64, 0x8F, 0x11, 0x40, 0x02, 0x00}},
     {.fixture_id = 2, .mac_adress = {0x24, 0x6F, 0x28, 0xAA, 0xBB, 0x02}},
+    {.fixture_id = 3, .mac_adress = {0x88, 0x57, 0x21, 0x68, 0xC7, 0x38}},
+    {.fixture_id = 4, .mac_adress = {0x88, 0x57, 0x21, 0x68, 0xE8, 0xC4}},
+    {.fixture_id = 5, .mac_adress = {0x84, 0x1F, 0xE8, 0x27, 0xA4, 0x1C}},
+    {.fixture_id = 6, .mac_adress = {0x80, 0xF3, 0xDA, 0xAD, 0x89, 0x18}},
+
     // Add more fixtures as needed
 };
 
@@ -27,7 +32,7 @@ uint8_t get_fixture_id_from_mac(void) {
         if (fixture_id_config[i].fixture_id != 0) {
             // Compare MAC addresses byte by byte
             if (memcmp(mac, fixture_id_config[i].mac_adress, 6) == 0) {
-                ESP_LOGI(TAG, "Found matching fixture ID: %d", fixture_id_config[i].fixture_id);
+                ESP_LOGI(TAG, "Found matching fixture ID: %d", fixture_id_config[i].fixture_id); 
                 return fixture_id_config[i].fixture_id;
             }
         }
@@ -35,6 +40,6 @@ uint8_t get_fixture_id_from_mac(void) {
     
     // No matching MAC found
     ESP_LOGW(TAG, "No fixture ID found for this MAC address, using default ID 0");
-    return 0; // Return 0 or some default value when no match is found
+    return 0; 
 }
 

@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+#define LED_PIN 2
+
 // Extern declaration for global received data struct
 typedef struct {
 	uint8_t highlight;
@@ -21,9 +23,12 @@ typedef struct {
 } received_data_t;
 
 
+extern uint8_t FIXTURE_ID;
 extern volatile received_data_t g_received_data;
 extern volatile state_t state;
 extern SemaphoreHandle_t state_mutex;
+extern int received_per_second;
+extern int receiver_processing_time;
 
 
 // Callback for received ESP-NOW data

@@ -4,7 +4,7 @@
 #include "led_strip_config.h"
 
 // Brightness control
-#define MAX_LED_STRIP_BRIGHTNESS 150
+#define MAX_LED_STRIP_BRIGHTNESS 50
 
 // Simulation & refresh rates
 #define REFRESH_RECEIVER_HZ 40

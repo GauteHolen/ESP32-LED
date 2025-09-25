@@ -18,9 +18,13 @@
 #include "led_pixel.h"
 #include "process_pixels.h"
 #include "fixture_id_config.h"
+#include "esp_timer.h"
+#include "driver/gpio.h"
 
 
 
+
+int time_since_received = 0;
 
 
 
@@ -35,6 +39,11 @@ SemaphoreHandle_t pulse_mutex;
 volatile received_data_t g_received_data;
 volatile state_t state;
 SemaphoreHandle_t state_mutex;
+
+uint8_t FIXTURE_ID;
+
+int received_per_second;
+int receiver_processing_time;
 
 
 
@@ -226,7 +235,7 @@ void decay_leds(void *pvParameters){
         boundary_conditions(g_trail, LED_BUFFER_SIZE, BOUNDARY_SIZE);
         boundary_conditions(b_trail, LED_BUFFER_SIZE, BOUNDARY_SIZE);
 
-        printf("Noise amplitude: %d\r", noise_amplitude);
+        // printf("Noise amplitude: %d\r", noise_amplitude);
         fill_random_bytes(random_buffer, LED_BUFFER_SIZE);
         amplitude_multiply_source(r_noise_buffer, random_buffer, r_noise, noise_amplitude, LED_BUFFER_SIZE);
         amplitude_multiply_source(g_noise_buffer, random_buffer, g_noise, noise_amplitude, LED_BUFFER_SIZE);
@@ -350,7 +359,7 @@ void app_main(void)
 
 {
     printf("FreeRTOS tick rate: %d Hz\n", configTICK_RATE_HZ);
-    get_fixture_id_from_mac();
+    
 
     led_strip_handle_t led_strip = configure_led();
     ESP_ERROR_CHECK(led_strip_clear(led_strip));
@@ -362,6 +371,9 @@ void app_main(void)
     /* Init ESP-NOW receiver after semaphores are created so the receive
         callback can safely take `state_mutex`/other semaphores. */
     espnow_receiver_init();
+
+    FIXTURE_ID = get_fixture_id_from_mac();
+    ESP_LOGI(TAG, "Fixture ID: %d", FIXTURE_ID);
      
 	
     // Increase stack sizes: these tasks perform floating-point work, call into
@@ -369,17 +381,34 @@ void app_main(void)
     xTaskCreate(update_led_pixels, "UpdateLEDs", 4096, led_strip, 5, NULL);
     xTaskCreate(decay_leds, "DecayLEDs", 8192, NULL, 5, NULL);
 
+   
+
+
+
     const int wait_time = 1000 / REFRESH_RECEIVER_HZ;
     TickType_t last_wake_time = xTaskGetTickCount(); // capture current tick
+
+     // Led pin FLASH
+    gpio_reset_pin(LED_PIN);
+    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_PIN, 1); // LED on
+    vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(2000));
+    gpio_set_level(LED_PIN, 0); // LED off
 
     ESP_LOGI(TAG, "Pulse test");
     int idx = 0;
     set_color(0,0,0);
     // set_background_color(10, 0, 0);
+
+    int start_time = 0;
+    int end_time = 0;
+    int time_elapsed = 0;
     
 
     float flash_mult = 1.0;
     while (1) {
+        start_time = esp_timer_get_time();
+        
 
 		if (g_received_data.highlight>0) {
 			set_color(20, 20, 20);
@@ -413,5 +442,15 @@ void app_main(void)
         }
 
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(wait_time));
+        end_time = esp_timer_get_time();
+        time_elapsed += (end_time - start_time);
+        if (time_elapsed >= 1000000) {
+            ESP_LOGI(TAG, "Received %d packets in the last second. Average processing time: %d us", received_per_second, receiver_processing_time / (received_per_second == 0 ?1 : received_per_second));
+            time_elapsed = 0;
+            received_per_second = 0;
+            receiver_processing_time = 0;
+        }
+
+        gpio_set_level(LED_PIN, 0); // LED off
     }
 }
