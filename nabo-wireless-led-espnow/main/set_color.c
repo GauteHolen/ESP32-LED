@@ -90,8 +90,9 @@ void set_color_pixel(int index, uint8_t r, uint8_t g, uint8_t b)
 
 void set_color_pixels(int *indexes, uint16_t count, uint8_t r, uint8_t g, uint8_t b)
 {
+    int index = 0;
     for (size_t i = 0; i < count; i++) {
-        int index = indexes[i];
+        index = indexes[i];
         if (index < 0 || index >= LED_STRIP_LED_COUNT) {
             ESP_LOGW(TAG, "Index out of bounds: %d", index);
             continue;

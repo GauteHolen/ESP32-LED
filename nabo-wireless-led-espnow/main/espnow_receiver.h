@@ -20,6 +20,7 @@ typedef struct {
 	uint8_t random_pixels;
 	uint8_t fast_wave;
 	uint8_t noise_flash;
+	uint8_t segment;
 } received_data_t;
 
 

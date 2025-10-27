@@ -22,6 +22,11 @@ typedef struct {
     uint8_t f3;
     float flow_amount;
     float decay;
+    uint8_t shutter;
+    uint8_t particle_spawn_rate;
+    uint8_t shutter_decay;
+    uint8_t shutter_attack;
+
 } state_t;
 
 extern volatile state_t state;

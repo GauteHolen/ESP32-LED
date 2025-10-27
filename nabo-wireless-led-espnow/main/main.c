@@ -50,33 +50,125 @@ int receiver_processing_time;
 static const char *TAG = "MAIN FILE";
 
 
+
+
 void update_led_pixels(void *pvParameters)
 {
     led_strip_handle_t led_strip = (led_strip_handle_t)pvParameters;
     const int wait_time = 1000 / REFRESH_LED_HZ;
     TickType_t last_wake_time = xTaskGetTickCount(); // capture current tick
+    uint8_t frame_counter = 0;
+    uint8_t closed_count = 0;
+    uint8_t shutter = 1;
+    uint8_t shutter_decay = 5;
+    uint8_t shutter_attack = 5;
+    float lambda = 0.96;
+    float lambda_attack = 0.01;
+    float attack = 0.0;
+
+    static int16_t r_prev[LED_STRIP_LED_COUNT] = {0};
+    static int16_t g_prev[LED_STRIP_LED_COUNT] = {0};
+    static int16_t b_prev[LED_STRIP_LED_COUNT] = {0};
+
     while (1) {
+       
+        
         int64_t start = esp_timer_get_time();
         // ESP_LOGI(TAG,"update pixels");
+        if (xSemaphoreTake(state_mutex, portMAX_DELAY) == pdTRUE) {
+            shutter = state.shutter;
+            shutter_decay = state.shutter_decay;
+            shutter_attack = state.shutter_attack;
+            xSemaphoreGive(state_mutex);
+        }
+        lambda = 1 - 1 / ((float) max(shutter_decay, 1));
+        lambda_attack = 1 / ((float) max(shutter_attack, 1));
+
+
         xSemaphoreTake(led_pixels_mutex, portMAX_DELAY);
-        
-        for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
-            led_strip_set_pixel(led_strip, i, 
-                MIN(led_pixels.r[i] + 
-                    led_pixels.r_bg[i] + 
-                    led_pixels.r_trail[i] + 
-                    led_pixels.r_fast_map[i] +
-                    led_pixels.r_noise[i], MAX_LED_STRIP_BRIGHTNESS),
-                MIN(led_pixels.g[i] + 
-                    led_pixels.g_bg[i] + 
-                    led_pixels.g_trail[i] + 
-                    led_pixels.g_fast_map[i] + 
-                    led_pixels.g_noise[i], MAX_LED_STRIP_BRIGHTNESS), 
-                MIN(led_pixels.b[i] + 
-                    led_pixels.b_bg[i] + 
-                    led_pixels.b_trail[i] + 
-                    led_pixels.b_fast_map[i] + 
-                    led_pixels.b_noise[i], MAX_LED_STRIP_BRIGHTNESS));
+
+        if (shutter == 0) {
+            attack = 0.0;
+        }
+
+
+        if (shutter == 0 && shutter_decay == 0) {
+            for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                led_strip_set_pixel(led_strip, i, 0, 0, 0);
+            }
+        }
+
+        else if (shutter == 0 && shutter_decay > 0) {
+            //printf("Shutter decay %d %f\n", shutter_decay, lambda);
+            for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                r_prev[i] = (uint8_t)(r_prev[i] * lambda);
+                g_prev[i] = (uint8_t)(g_prev[i] * lambda);
+                b_prev[i] = (uint8_t)(b_prev[i] * lambda);
+                led_strip_set_pixel(led_strip, i, 
+                    r_prev[i],
+                    g_prev[i],
+                    b_prev[i]);
+            }
+        }
+
+
+        else if (shutter > 3 && frame_counter % shutter == 0) {
+            if (closed_count < shutter/2) {
+                for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                    led_strip_set_pixel(led_strip, i, 0, 0, 0);
+                }
+                closed_count++;
+            }
+        }
+        else if (shutter > 2 && closed_count > 0) {
+            for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                led_strip_set_pixel(led_strip, i, 0, 0, 0);
+            }
+            closed_count++;
+            if (closed_count >= shutter/2) {
+                closed_count = 0;
+            }
+        }
+
+        else {
+            for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                r_prev[i] = MIN(led_pixels.r[i] + 
+                        led_pixels.r_bg[i] + 
+                        led_pixels.r_trail[i] + 
+                        led_pixels.r_fast_map[i] +
+                        led_pixels.r_noise[i], MAX_LED_STRIP_BRIGHTNESS);
+                g_prev[i] = MIN(led_pixels.g[i] + 
+                        led_pixels.g_bg[i] + 
+                        led_pixels.g_trail[i] + 
+                        led_pixels.g_fast_map[i] +
+                        led_pixels.g_noise[i], MAX_LED_STRIP_BRIGHTNESS);
+                b_prev[i] = MIN(led_pixels.b[i] + 
+                        led_pixels.b_bg[i] + 
+                        led_pixels.b_trail[i] + 
+                        led_pixels.b_fast_map[i] +
+                        led_pixels.b_noise[i], MAX_LED_STRIP_BRIGHTNESS);
+                }
+                
+            if (attack < 1.0 && shutter_attack > 0) {
+                // printf("Attack %f %d\n", attack, shutter_attack);
+                for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                    led_strip_set_pixel(led_strip, i, 
+                    r_prev[i] * attack,
+                    g_prev[i] * attack,
+                    b_prev[i] * attack); 
+                }
+                attack += lambda_attack;
+            } 
+            else {
+                for (int i = 0; i < LED_STRIP_LED_COUNT; i++) {
+                    led_strip_set_pixel(led_strip, i, 
+                    r_prev[i],
+                    g_prev[i],
+                    b_prev[i]);
+                }
+                    
+            }
+                
         }
         xSemaphoreGive(led_pixels_mutex);
         
@@ -84,6 +176,7 @@ void update_led_pixels(void *pvParameters)
         int64_t end = esp_timer_get_time();
         //printf("\rRefresh took %lld ms, ", (end - start)/1000);
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(wait_time));
+        frame_counter++;
         
     }
 }
@@ -403,7 +496,10 @@ void app_main(void)
     int start_time = 0;
     int end_time = 0;
     int time_elapsed = 0;
-    
+    int num_pixels = 0;
+    uint8_t amplitude = 0;
+    uint8_t frame_counter = 0;
+    uint8_t spawn_count = 0;
 
     float flash_mult = 1.0;
     while (1) {
@@ -424,7 +520,7 @@ void app_main(void)
             g_received_data.flash = 0;
         }
         if (g_received_data.random_pixels>0) {
-            int num_pixels = g_received_data.random_pixels;
+            num_pixels = g_received_data.random_pixels;
             for (int i = 0; i < num_pixels; i++) {
                 set_color_pixel(rand() % LED_STRIP_LED_COUNT, state.r, state.g, state.b);
             }
@@ -436,9 +532,37 @@ void app_main(void)
             g_received_data.fast_wave = 0;
         }
         if (g_received_data.noise_flash>0) {
-            uint8_t amplitude = g_received_data.noise_flash;
+            amplitude = g_received_data.noise_flash;
             set_noise_flash(amplitude);
             g_received_data.noise_flash = 0;
+        }
+        if (g_received_data.segment>0) {
+            int segment_size = g_received_data.segment;
+            int start_seg = rand_range(0, LED_STRIP_LED_COUNT - segment_size);
+            int end_seg = start_seg + segment_size;
+            for (int i = start_seg; i < end_seg; i++) {
+                set_color_pixel(i, state.r, state.g, state.b);
+            }
+            g_received_data.segment = 0;
+        }
+
+        if (state.particle_spawn_rate > 0) {
+            int r_rand = MIN(rand_range(state.r / 3, 2 * state.r), 255);
+            int g_rand = MIN(rand_range(state.g / 3, 2 * state.g), 255);
+            int b_rand = MIN(rand_range(state.b / 3, 2 * state.b), 255);
+            if (state.particle_spawn_rate >= REFRESH_RECEIVER_HZ){
+                spawn_count = state.particle_spawn_rate / REFRESH_RECEIVER_HZ;
+                //printf("Spawn %d particles\n", spawn_count);
+                for (int i = 0; i < spawn_count; i++) {
+                    set_color_pixel(rand_range(0, LED_STRIP_LED_COUNT - 1), r_rand, g_rand, b_rand);
+                }
+            }
+            else if (frame_counter % (REFRESH_RECEIVER_HZ - state.particle_spawn_rate) == 0){
+                //printf("Spawn particle %d %d \n", frame_counter, frame_counter % state.particle_spawn_rate );
+                
+                set_color_pixel(rand_range(0, LED_STRIP_LED_COUNT - 1), r_rand, g_rand, b_rand);
+            }
+            
         }
 
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(wait_time));
@@ -450,6 +574,7 @@ void app_main(void)
             received_per_second = 0;
             receiver_processing_time = 0;
         }
+        frame_counter++;
 
         gpio_set_level(LED_PIN, 0); // LED off
     }

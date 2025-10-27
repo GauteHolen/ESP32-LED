@@ -130,12 +130,32 @@ void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, i
                 state.noise_level = p->values[13];
                 state.flow_amount = ((float) p->values[14]-127) / 127.0;
                 state.decay = 1 - 1 / ((float) max(255 - p->values[15], 1));
-                g_received_data.highlight = p->triggers[0];
-                g_received_data.blackout = p->triggers[1];
-                g_received_data.flash = p->triggers[2];
-                g_received_data.random_pixels = p->triggers[3];
-                g_received_data.fast_wave = p->triggers[4];
-                g_received_data.noise_flash = p->triggers[5];
+                state.shutter = p->values[16];
+                state.particle_spawn_rate = p->values[17];
+                state.shutter_decay = p->values[18];
+                state.shutter_attack = p->values[19];
+                if (p->triggers[0] > 0) {
+                    g_received_data.highlight = p->triggers[0];
+                }
+                if (p->triggers[1] > 0) {
+                    g_received_data.blackout = p->triggers[1];
+                }
+                if (p->triggers[2] > 0) {
+                    g_received_data.flash = p->triggers[2];
+                }
+                if (p->triggers[3] > 0) {
+                    g_received_data.random_pixels = p->triggers[3];
+                }
+                if (p->triggers[4] > 0) {
+                    g_received_data.fast_wave = p->triggers[4];
+                }
+                if (p->triggers[5] > 0) {
+                    g_received_data.noise_flash = p->triggers[5];
+                }
+                if (p->triggers[6] > 0) {
+                    g_received_data.segment = p->triggers[6];
+                }
+                
                 xSemaphoreGive(state_mutex);
                 // ESP_LOGI(TAG, "Applied fixture payload for fixture_id=%u (index=%d)", FIXTURE_ID, found_idx);
                 //ESP_LOGI(TAG, "Triggers: %u %u %u %u %u %u from fixture_id=%u", 
