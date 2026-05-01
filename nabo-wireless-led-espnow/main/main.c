@@ -20,6 +20,7 @@
 #include "fixture_id_config.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
+#include "particles.h"
 
 
 
@@ -35,10 +36,49 @@ bool pulse = true;
 led_pixel_t led_pixels;
 SemaphoreHandle_t led_pixels_mutex;
 SemaphoreHandle_t pulse_mutex;
+SemaphoreHandle_t particles_mutex;
+SemaphoreHandle_t state_mutex;
 
 volatile received_data_t g_received_data;
-volatile state_t state;
-SemaphoreHandle_t state_mutex;
+volatile state_t state = {
+    .r = 0,
+    .g = 0,
+    .b = 0,
+    .r_bg = 15,
+    .g_bg = 0,
+    .b_bg = 4,
+    .r_fast = 0,
+    .g_fast = 0,
+    .b_fast = 0,
+    .noise_level = 0,
+    .D = 1.0f,
+    .trail_amount = 0.5f,
+    .trail_decay = 0.5f,
+    .v = 0,
+    .f1 = 4,
+    .f2 = 0,
+    .f3 = 0,
+    .flow_amount = 0.0f,
+    .decay = 0.5f,
+    .shutter = 1,
+    .particle_spawn_rate = 10,
+    .shutter_decay = 5,
+    .shutter_attack = 5,
+
+    .r_particles = 0,
+    .g_particles = 0,
+    .b_particles = 0,
+    .particle_decay = 0.9f,
+    .particle_velocity = 1,
+    .particle_life = 100,
+    .particle_velocity_decay = 1.0f,
+    .particle_color_decay = 1.0f,
+    .particle_spawn_start = 0,
+    .particle_spawn_end = 0,
+    .particle_static_velocity = 10
+        };
+
+volatile particle_t particles;
 
 uint8_t FIXTURE_ID;
 
@@ -136,17 +176,20 @@ void update_led_pixels(void *pvParameters)
                         led_pixels.r_bg[i] + 
                         led_pixels.r_trail[i] + 
                         led_pixels.r_fast_map[i] +
-                        led_pixels.r_noise[i], MAX_LED_STRIP_BRIGHTNESS);
+                        led_pixels.r_noise[i] + 
+                        led_pixels.r_particles[i], MAX_LED_STRIP_BRIGHTNESS);
                 g_prev[i] = MIN(led_pixels.g[i] + 
                         led_pixels.g_bg[i] + 
                         led_pixels.g_trail[i] + 
                         led_pixels.g_fast_map[i] +
-                        led_pixels.g_noise[i], MAX_LED_STRIP_BRIGHTNESS);
+                        led_pixels.g_noise[i] + 
+                        led_pixels.g_particles[i], MAX_LED_STRIP_BRIGHTNESS);
                 b_prev[i] = MIN(led_pixels.b[i] + 
                         led_pixels.b_bg[i] + 
                         led_pixels.b_trail[i] + 
                         led_pixels.b_fast_map[i] +
-                        led_pixels.b_noise[i], MAX_LED_STRIP_BRIGHTNESS);
+                        led_pixels.b_noise[i] + 
+                        led_pixels.b_particles[i], MAX_LED_STRIP_BRIGHTNESS);
                 }
                 
             if (attack < 1.0 && shutter_attack > 0) {
@@ -199,7 +242,7 @@ void decay_leds(void *pvParameters){
     float f1 = 1.0 * freq_coeff;
     float f2 = 1.0 * freq_coeff;
     float f3 = 1.0 * freq_coeff;
-
+    int8_t v = 0;
     float dt = wait_time / 1000.0;
     float dx = 0.016667;
     float dtdx2 = dt / (dx * dx);
@@ -207,13 +250,14 @@ void decay_leds(void *pvParameters){
     float D = 1.0 * D_coeff;
     float trail_amount = 0.0;
     float trail_decay = 0.0;
+    float particle_decay = 0.9f;
 
     float dt2dx = 0.5 * dt / dx;
     float v_max = 0.5*dx/dt;
     float v_coeff = v_max * 0.05;
     printf("v_max: %f\n", v_max);
     printf("D_max: %f\n", dtdx2);
-    float v = 0.0*v_max;
+    
     int noise_level = 150;
     int64_t start1, start2, end1, end2;
 
@@ -232,6 +276,9 @@ void decay_leds(void *pvParameters){
     static int16_t r_trail[LED_BUFFER_SIZE];
     static int16_t g_trail[LED_BUFFER_SIZE];
     static int16_t b_trail[LED_BUFFER_SIZE];
+    static int16_t r_particle[LED_STRIP_LED_COUNT];
+    static int16_t g_particle[LED_STRIP_LED_COUNT];
+    static int16_t b_particle[LED_STRIP_LED_COUNT];
     static int16_t r_fast_map[LED_BUFFER_SIZE];
     static int16_t g_fast_map[LED_BUFFER_SIZE];
     static int16_t b_fast_map[LED_BUFFER_SIZE];
@@ -239,6 +286,10 @@ void decay_leds(void *pvParameters){
     static int16_t g_noise_buffer[LED_BUFFER_SIZE];
     static int16_t b_noise_buffer[LED_BUFFER_SIZE];
     static uint8_t random_buffer[LED_BUFFER_SIZE];
+
+
+
+
     uint8_t r_noise = 0, g_noise = 0, b_noise = 0;
 
     int noise_flash_counter = 0;
@@ -274,8 +325,8 @@ void decay_leds(void *pvParameters){
             D = state.D * D_coeff;
             trail_amount = state.trail_amount / 255.0;
             trail_decay = state.trail_decay;
-
-            v = state.v * v_coeff / 255.0;
+            particle_decay = state.particle_decay;
+            v = state.v;
             noise_level = state.noise_level;
             flow_amount = state.flow_amount;
             lambda = state.decay;
@@ -312,6 +363,16 @@ void decay_leds(void *pvParameters){
             xSemaphoreGive(led_pixels_mutex);
             //printf("MutexCopy %lldmus ", (end2 - start2));
         }
+
+        if (xSemaphoreTake(particles_mutex, portMAX_DELAY) == pdTRUE) {
+            update_particles(&particles);
+            render_particles(&particles, r_particle, g_particle, b_particle);
+            xSemaphoreGive(particles_mutex);
+        }
+        decay(r_particle, particle_decay, LED_BUFFER_SIZE);
+        decay(g_particle, particle_decay, LED_BUFFER_SIZE);
+        decay(b_particle, particle_decay, LED_BUFFER_SIZE);
+
         start2 = esp_timer_get_time();
         boundary_conditions(r, LED_BUFFER_SIZE, BOUNDARY_SIZE);
         boundary_conditions(g, LED_BUFFER_SIZE, BOUNDARY_SIZE);
@@ -420,6 +481,9 @@ void decay_leds(void *pvParameters){
                 led_pixels.r_noise[i] = r_noise_buffer[i + BOUNDARY_SIZE];
                 led_pixels.g_noise[i] = g_noise_buffer[i + BOUNDARY_SIZE];
                 led_pixels.b_noise[i] = b_noise_buffer[i + BOUNDARY_SIZE];
+                led_pixels.r_particles[i] = r_particle[i];
+                led_pixels.g_particles[i] = g_particle[i];
+                led_pixels.b_particles[i] = b_particle[i];
             }
             for (int i = 0; i < FAST_WAVE; i++) {
                 led_pixels.r_fast[i] = r_fast[i + BOUNDARY_SIZE];
@@ -458,8 +522,14 @@ void app_main(void)
     ESP_ERROR_CHECK(led_strip_clear(led_strip));
 
 
+
     led_pixels_mutex = xSemaphoreCreateMutex();
     state_mutex = xSemaphoreCreateMutex();
+    particles_mutex = xSemaphoreCreateMutex();
+
+    ESP_LOGI(TAG, "Initializing particles");
+    init_particles(&particles);
+
 
     /* Init ESP-NOW receiver after semaphores are created so the receive
         callback can safely take `state_mutex`/other semaphores. */
@@ -546,6 +616,45 @@ void app_main(void)
             g_received_data.segment = 0;
         }
 
+        if (g_received_data.particle>0) {
+
+            // Take mutex
+            if (xSemaphoreTake(particles_mutex, portMAX_DELAY) == pdTRUE) { 
+                if (state.particle_velocity < 0.0){
+                    spawn_particle(&particles, state.r_particles, state.g_particles, state.b_particles, g_received_data.particle, PARTICLE_GRID_SIZE - 1, PARTICLE_GRID_SIZE - 1, state.particle_velocity, state.particle_velocity_decay, state.particle_color_decay);
+                }
+                else {
+                    spawn_particle(&particles, state.r_particles, state.g_particles, state.b_particles, g_received_data.particle, 0, 0, state.particle_velocity, state.particle_velocity_decay, state.particle_color_decay);
+                }
+                xSemaphoreGive(particles_mutex);
+            }
+            
+            g_received_data.particle = 0;
+        }
+
+        if (g_received_data.particle_burst>0) {
+            
+            int burst_count = g_received_data.particle_burst;
+            // Take mutex
+            if (xSemaphoreTake(particles_mutex, portMAX_DELAY) == pdTRUE) { 
+                for (int i = 0; i < burst_count; i++) {
+                    int r_rand = MIN(rand_range(state.r_particles / 3, 2 * state.r_particles), 255);
+                    int g_rand = MIN(rand_range(state.g_particles / 3, 2 * state.g_particles), 255);
+                    int b_rand = MIN(rand_range(state.b_particles / 3, 2 * state.b_particles), 255);
+                    if (state.particle_velocity < 0.0){
+                        spawn_particle(&particles, r_rand, g_rand, b_rand, rand_range(0,127), PARTICLE_GRID_SIZE - 1, PARTICLE_GRID_SIZE - 1, rand_range(state.particle_velocity, 0), state.particle_velocity_decay, state.particle_color_decay);
+                    }
+                    else {
+                        spawn_particle(&particles, r_rand, g_rand, b_rand, rand_range(0,127), 0, 0, rand_range(0, state.particle_velocity), state.particle_velocity_decay, state.particle_color_decay);
+                    }
+                }
+                xSemaphoreGive(particles_mutex);
+            }
+            
+            g_received_data.particle_burst = 0;
+        }
+
+
         if (state.particle_spawn_rate > 0) {
             int r_rand = MIN(rand_range(state.r / 3, 2 * state.r), 255);
             int g_rand = MIN(rand_range(state.g / 3, 2 * state.g), 255);
@@ -564,6 +673,45 @@ void app_main(void)
             }
             
         }
+
+        if (state.particle_spawn_start > 0) {
+            int r_rand = MIN(rand_range(state.r_particles / 3, 2 * state.r_particles), 255);
+            int g_rand = MIN(rand_range(state.g_particles / 3, 2 * state.g_particles), 255);
+            int b_rand = MIN(rand_range(state.b_particles / 3, 2 * state.b_particles), 255);
+            if (state.particle_spawn_start >= REFRESH_RECEIVER_HZ){
+                spawn_count = state.particle_spawn_start / REFRESH_RECEIVER_HZ;
+                //printf("Spawn %d particles\n", spawn_count);
+                for (int i = 0; i < spawn_count; i++) {
+                    spawn_particle(&particles, r_rand, g_rand, b_rand, rand_range(0,state.particle_life), 0, 0, rand_range(1,state.particle_static_velocity), state.particle_velocity_decay, state.particle_color_decay);
+                }
+            }
+            else if (frame_counter % (REFRESH_RECEIVER_HZ - state.particle_spawn_start) == 0){
+                //printf("Spawn particle %d %d \n", frame_counter, frame_counter % state.particle_spawn_start );
+                
+                spawn_particle(&particles, r_rand, g_rand, b_rand, rand_range(0,state.particle_life), 0, 0, rand_range(1,state.particle_static_velocity), state.particle_velocity_decay, state.particle_color_decay);
+            }
+        }
+
+        if (state.particle_spawn_end > 0) {
+            int r_rand = MIN(rand_range(state.r_particles / 3, 2 * state.r_particles), 255);
+            int g_rand = MIN(rand_range(state.g_particles / 3, 2 * state.g_particles), 255);
+            int b_rand = MIN(rand_range(state.b_particles / 3, 2 * state.b_particles), 255);
+            if (state.particle_spawn_end >= REFRESH_RECEIVER_HZ){
+                spawn_count = state.particle_spawn_end / REFRESH_RECEIVER_HZ;
+                //printf("Spawn %d particles\n", spawn_count);
+                for (int i = 0; i < spawn_count; i++) {
+                    spawn_particle(&particles, r_rand, g_rand, b_rand, rand_range(0,state.particle_life),PARTICLE_GRID_SIZE - 1, PARTICLE_GRID_SIZE - 1, -rand_range(1,state.particle_static_velocity), state.particle_velocity_decay, state.particle_color_decay);
+                }
+            }
+            else if (frame_counter % (REFRESH_RECEIVER_HZ - state.particle_spawn_end) == 0){
+                //printf("Spawn particle %d %d \n", frame_counter, frame_counter % state.particle_spawn_end );
+                
+                spawn_particle(&particles, r_rand, g_rand, b_rand, rand_range(0,state.particle_life),PARTICLE_GRID_SIZE - 1, PARTICLE_GRID_SIZE - 1, -rand_range(1,state.particle_static_velocity), state.particle_velocity_decay, state.particle_color_decay);
+            }
+        }
+
+
+
 
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(wait_time));
         end_time = esp_timer_get_time();

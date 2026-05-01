@@ -1,8 +1,7 @@
 #ifndef FIXTURE_ID_CONFIG_H
 #define FIXTURE_ID_CONFIG_H
 #include <stdint.h>
-
-#define NUM_FIXTURES 16
+#include "message_config.h"
 
 typedef struct {
     uint8_t fixture_id;

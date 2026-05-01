@@ -55,9 +55,11 @@ static bool parse_broadcast_message(const uint8_t *buf, int len, broadcast_messa
 
 void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len)
 {   
+    // ESP_LOGI(TAG, "Received packet len %d, expected=%d", len, BROADCAST_MESSAGE_SIZE);
+    
+    start = esp_timer_get_time();
     gpio_set_level(LED_PIN, 1); // LED on
     received_per_second++;
-    start = esp_timer_get_time();
     
 
     char mac_str[18];
@@ -79,12 +81,13 @@ void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, i
     printf("\n");
     */
     // First: try parsing as a broadcast_message_t
+    
     if (len >= BROADCAST_MESSAGE_SIZE) {
         broadcast_message_t msg;
         if (parse_broadcast_message(idata, len, &msg)) {
             // ESP_LOGI(TAG, "Received broadcast seq=%u from %s", msg.sequence, mac_str);
             // Debug: print received length and magic
-            //ESP_LOGI(TAG, "Packet len=%d, expected broadcast size=%d", len, BROADCAST_MESSAGE_SIZE);
+            // ESP_LOGI(TAG, "Packet len=%d, expected broadcast size=%d", len, BROADCAST_MESSAGE_SIZE);
             //ESP_LOGI(TAG, "Magic bytes: %02X %02X %02X %02X", msg.magic[0], msg.magic[1], msg.magic[2], msg.magic[3]);
 
             // Find fixture entry that matches this device's fixture_id
@@ -102,6 +105,7 @@ void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, i
                 // ESP_LOGI(TAG, "Fixture %d: parsed_id=%u raw_buffer[%d]=%02X", i, parsed_id, raw_offset, raw_id);
                 if (parsed_id == FIXTURE_ID) {
                     found_idx = i;
+                    
                     break;
                 }
             }
@@ -126,7 +130,7 @@ void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, i
                 state.D = p->values[9];
                 state.trail_amount = p->values[10];
                 state.trail_decay = 1 - 1 / ((float) max(255 - p->values[11], 1));
-                state.v = p->values[12];
+                state.v =(int8_t) p->values[12] - 127; // Center velocity around 0
                 state.noise_level = p->values[13];
                 state.flow_amount = ((float) p->values[14]-127) / 127.0;
                 state.decay = 1 - 1 / ((float) max(255 - p->values[15], 1));
@@ -134,6 +138,23 @@ void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, i
                 state.particle_spawn_rate = p->values[17];
                 state.shutter_decay = p->values[18];
                 state.shutter_attack = p->values[19];
+                
+                hsl_to_rgb(p->values[20], p->values[21], &state.r_particles, &state.g_particles, &state.b_particles);
+                state.particle_decay = 1 - 1 / ((float) max(255 - p->values[22], 1));
+   
+                state.particle_velocity = (int8_t)p->values[23] - 127;
+                state.particle_life = p->values[24];
+
+                state.particle_velocity_decay = 1 -  (0.01 * (float) (255 - p->values[25]));
+                
+                
+
+
+                state.particle_color_decay = 1 -  (0.01 * (float) (255 - p->values[26]));
+                state.particle_spawn_start = p->values[27];
+                state.particle_spawn_end = p->values[28];
+                state.particle_static_velocity = p->values[29];
+
                 if (p->triggers[0] > 0) {
                     g_received_data.highlight = p->triggers[0];
                 }
@@ -155,11 +176,22 @@ void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, i
                 if (p->triggers[6] > 0) {
                     g_received_data.segment = p->triggers[6];
                 }
+                if (p->triggers[7] > 0) {
+                    g_received_data.particle = p->triggers[7];
+                }
+                if (p->triggers[8] > 0) {
+                    g_received_data.particle_burst = p->triggers[8];
+                }
                 
                 xSemaphoreGive(state_mutex);
                 // ESP_LOGI(TAG, "Applied fixture payload for fixture_id=%u (index=%d)", FIXTURE_ID, found_idx);
-                //ESP_LOGI(TAG, "Triggers: %u %u %u %u %u %u from fixture_id=%u", 
-                //    p->triggers[0], p->triggers[1], p->triggers[2], p->triggers[3], p->triggers[4], p->triggers[5], FIXTURE_ID);
+                /**ESP_LOGI(TAG, "Triggers: %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u from fixture_id=%u", 
+                    p->triggers[0], p->triggers[1], p->triggers[2], p->triggers[3], p->triggers[4], p->triggers[5], p->triggers[6], p->triggers[7], p->triggers[8], p->triggers[9], p->triggers[10], p->triggers[11], p->triggers[12], p->triggers[13], p->triggers[14], FIXTURE_ID);
+                */
+
+                //ESP_LOGI(TAG, "Values Particles: %u %u %u %u %u %u %u %u %u %u", p->values[20], p->values[21], p->values[22], p->values[23], p->values[24], p->values[25], p->values[26], p->values[27], p->values[28], p->values[29]);
+
+                //ESP_LOGI(TAG, "Values Particles: %u %u %u %u %u %u %u %u %u %u", state.r_particles, state.g_particles, state.b_particles, state.particle_velocity, state.particle_life, state.particle_velocity_decay, state.particle_color_decay, state.particle_spawn_start, state.particle_spawn_end, state.particle_static_velocity);
 
                 end = esp_timer_get_time();
                 receiver_processing_time += (int) end - start;

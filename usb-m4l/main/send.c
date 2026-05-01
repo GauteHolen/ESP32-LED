@@ -52,7 +52,8 @@ int send_broadcast_message(broadcast_message_t *message, const uint8_t *broadcas
         printf("\n");
     }
    
-
+    // ESP_LOGI(TAG, "Message length: %d bytes", sizeof(*message));
+    
     result = esp_now_send(broadcastAddr, (uint8_t*)message,sizeof(*message));
     if (result != ESP_OK) {
         ESP_LOGW(TAG, "ESP-NOW send error: %s (%d)", esp_err_to_name(result), result);

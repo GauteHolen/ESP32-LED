@@ -1,0 +1,104 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+
+% --- Branding Colors ---
+\definecolor{lightaccent}{RGB}{0, 120, 215}
+
+% --- Header & Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{Technical Rider:} Somatic Sentience}
+\rhead{Contact: +47 41275472 / gauteah@gmail.com}
+\cfoot{\thepage}
+
+% --- Document Info ---
+\begin{document}
+
+\input{titlepage.tex}
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent This document outlines the physical, electrical, and data requirements for the installation of \textbf{Somatic Sentience}. It is intended for site managers, production technicians, and safety officers.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% --- Section 1: Quick Specs Table ---
+\section{Technical Summary (TL;DR)}
+\input{sec:summary.tex}
+
+\section{Brain box}
+\input{sec:brain.tex}
+
+\section{Tentacles}
+\input{sec:tentacles.tex}
+
+\section{Frames and mounting}
+\input{sec:frames.tex}
+
+% --- Section 2: Physical Requirements ---
+\section{Physical \& Spatial Requirements}
+\subsection{Dimensions \& Weight}
+Detail the size when assembled. Include a "Clearance Zone" if the lights are moving or hot.
+\begin{itemize}
+    \item \textbf{Assembled Dimensions:} [W] x [D] x [H] cm.
+    \item \textbf{Safety Perimeter:} [X] meters from the public.
+    \item \textbf{Static Load:} [X] kg (Weight of the unit).
+\end{itemize}
+
+\subsection{Mounting \& Rigging}
+How does it stay up? 
+\begin{itemize}
+    \item \textbf{Mounting Points:} [e.g., Standard 50mm truss clamps].
+    \item \textbf{Safety:} [e.g., Secondary safety bond required at point X].
+\end{itemize}
+
+% --- Section 3: Electrical & Data ---
+\section{Electrical \& Signal Specifications}
+\subsection{Power Requirements}
+\begin{itemize}
+    \item \textbf{Connector Type:} [e.g., PowerCON, IEC, or Schuko].
+    \item \textbf{Voltage:} [e.g., 110-240V AC, 50/60Hz].
+    \item \textbf{Peak Current Draw:} [X] Amps.
+\end{itemize}
+
+\subsection{Signal \& Control}
+How does the venue talk to your lights?
+\begin{itemize}
+    \item \textbf{Protocol:} [e.g., DMX512-A].
+    \item \textbf{Channel Map:} [e.g., 12 Channels / Universe 1].
+    \item \textbf{Connectivity:} [e.g., 5-pin XLR Male/Female].
+\end{itemize}
+
+% --- Section 4: Operation & Environment ---
+\section{Operational Guidelines}
+\subsection{Environmental Constraints}
+\begin{itemize}
+    \item \textbf{IP Rating:} [e.g., IP20 - Indoor use only].
+    \item \textbf{Operating Temp:} [e.g., $10^\circ$C to $35^\circ$C].
+    \item \textbf{Haze/Smoke:} [e.g., Compatible with water-based haze].
+\end{itemize}
+
+\subsection{Startup/Shutdown Procedure}
+Briefly explain how the venue staff can turn it on/off safely.
+
+% --- Section 5: Safety & Compliance ---
+\section{Health \& Safety}
+\begin{itemize}
+    \item \textbf{Fire Safety:} [e.g., All materials treated with fire retardant NFPA 701].
+    \item \textbf{Emergency Stop:} Location of the hard kill-switch.
+\end{itemize}
+
+\end{document}

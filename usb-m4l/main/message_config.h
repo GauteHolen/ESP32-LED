@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 
-#define NUM_VALUES 20
-#define NUM_TRIGGERS 10
-#define NUM_FIXTURES 16
+#define NUM_VALUES 30
+#define NUM_TRIGGERS 15
+#define NUM_FIXTURES 18
 
 
 typedef struct {

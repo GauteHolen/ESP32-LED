@@ -21,6 +21,12 @@
 #define BOUNDARY_SIZE 2
 #define LED_BUFFER_SIZE (LED_STRIP_LED_COUNT + 2 * BOUNDARY_SIZE)
 
+
+// Particle system configuration
+#define PARTICLE_BUFFER_SIZE 250
+#define PARTICLE_RESOLUTION 10
+#define PARTICLE_GRID_SIZE (LED_STRIP_LED_COUNT * PARTICLE_RESOLUTION)
+
 // Other project-wide constants can go here
 
 #endif // CONFIG_H

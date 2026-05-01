@@ -21,6 +21,8 @@ typedef struct {
 	uint8_t fast_wave;
 	uint8_t noise_flash;
 	uint8_t segment;
+	uint8_t particle;
+	uint8_t particle_burst;
 } received_data_t;
 
 

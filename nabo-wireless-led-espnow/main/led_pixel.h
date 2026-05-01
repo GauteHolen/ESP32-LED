@@ -25,6 +25,9 @@ typedef struct {
     uint8_t r_noise[LED_BUFFER_SIZE];
     uint8_t g_noise[LED_BUFFER_SIZE];
     uint8_t b_noise[LED_BUFFER_SIZE];
+    uint8_t r_particles[LED_STRIP_LED_COUNT];
+    uint8_t g_particles[LED_STRIP_LED_COUNT];
+    uint8_t b_particles[LED_STRIP_LED_COUNT];
 } led_pixel_t;
 
 
