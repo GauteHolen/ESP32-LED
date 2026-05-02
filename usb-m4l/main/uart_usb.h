@@ -16,7 +16,7 @@ typedef struct {
 } uart_stats;
 
 extern QueueHandle_t uart_queue;
-extern fixture_message_t fixtures[NUM_FIXTURES];
+extern fixture_data_t fixtures_uart[NUM_FIXTURES];
 
 void init_uart();
 void uart_receive_task(void *pvParameter);
