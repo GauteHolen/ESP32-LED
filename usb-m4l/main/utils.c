@@ -36,6 +36,11 @@ void init_fixtures(fixture_state_t *message) {
             message->fixtures[i].triggers_changed[j] = false;
         }
 
+        // Default values
+        message->fixtures[i].values[16] = 1; // open shutters by default
+        message->fixtures[i].values[2] = 128; // blue
+        message->fixtures[i].values[3] = 20; // brightness
+        message->fixtures[i].values[6] = 16; // slow phase
     }
 }
 
@@ -93,6 +98,23 @@ void fixture_data_to_esp_message(fixture_state_t *fixture, esp_message_t *esp_ms
             for (int t = 0; t < NUM_TRIGGERS; t++) {
                 esp_msg->fixtures[f].data.triggers[t] = fixture->fixtures[f].triggers[t];
             }
+        }
+    }
+}
+
+
+void open_shutter(fixture_data_t *fixture) {
+    if (fixture != NULL) {
+        // Example: set value index 16 to 1 to represent fully open shutter
+        fixture->values[16] = 1;
+        fixture->values_changed[16] = true;
+    }
+}
+
+void open_all_shutters(fixture_state_t *message) {
+    if (message != NULL) {
+        for (int f = 0; f < NUM_FIXTURES; f++) {
+            open_shutter(&message->fixtures[f]);
         }
     }
 }

@@ -20,6 +20,7 @@ const int baud_rate = 115200; // 921600 bps; ensure host/CH340 support this
  // larger buffer to absorb bursts
 const int tx_pin = UART_PIN_NO_CHANGE; // Use default TX pin
 const int rx_pin = UART_PIN_NO_CHANGE; // Use default RX pin
+static const char *TAG = "uart_usb";
 
 void init_uart() {
     const char *TAG = "init_uart";
@@ -91,7 +92,8 @@ void uart_receive_task(void *pvParameter) {
 
                             // validate fixture_id before indexing
                             if (fixture_id < 1 || fixture_id > NUM_FIXTURES) {
-                                ESP_LOGW("app_main", "Received out-of-range fixture_id: %d", fixture_id);
+                                
+                                ESP_LOGW(TAG, "Received out-of-range fixture_id: %d", fixture_id);
                             } else {
                                 int idx = fixture_id - 1; 
                                 stats->received_per_sec++;
@@ -103,6 +105,7 @@ void uart_receive_task(void *pvParameter) {
                                 else if (control >= NUM_VALUES && control < (NUM_VALUES + NUM_TRIGGERS)) {
                                     fixtures_uart[idx].triggers[control - NUM_VALUES] = (uint8_t)value;
                                     fixtures_uart[idx].triggers_changed[control - NUM_VALUES] = true;
+                                    // ESP_LOGI(TAG, "Received trigger change for fixture %d, trigger %d: %d", fixture_id, control - NUM_VALUES, value);
                                 }
                             }
                             
@@ -122,7 +125,7 @@ void uart_receive_task(void *pvParameter) {
                     end_read = esp_timer_get_time();
                     stats->total_read += end_read - start_read;                   
                     
-                    vTaskDelay(1); // allow copy and broadcast of updated data and
+                    //vTaskDelay(1); // allow copy and broadcast of updated data and
                     stats->read_per_cycle++;
                 }                
             }

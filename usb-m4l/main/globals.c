@@ -138,15 +138,13 @@ void copy_uart_to_broadcast_message() {
     // Copy fixtures to buffer under uart_mutex to ensure consistent snapshot of UART data
     take_uart_mutex();
     memcpy(fixtures_buffer, fixtures_uart, sizeof(fixtures_buffer));
-
-    vTaskDelay(1); // wait for copy before resetting triggers
-        for (int f = 0; f < NUM_FIXTURES; f++) {
-            for (int j = 0; j < NUM_TRIGGERS; j++) {
-                fixtures_uart[f].triggers[j] = 0;
-                
-            }
-            reset_fixture_change_flags(&fixtures_uart[f]);
+    for (int f = 0; f < NUM_FIXTURES; f++) {
+        for (int j = 0; j < NUM_TRIGGERS; j++) {
+            fixtures_uart[f].triggers[j] = 0;
+            fixtures_uart[f].triggers_changed[j] = false;
         }
+        reset_fixture_change_flags(&fixtures_uart[f]);
+    }
     give_uart_mutex();
 
     take_messages_mutex();

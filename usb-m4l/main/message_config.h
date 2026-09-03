@@ -7,7 +7,7 @@
 
 #define NUM_VALUES 30
 #define NUM_TRIGGERS 15
-#define NUM_FIXTURES 18
+#define NUM_FIXTURES 52
 #define MAGIC_ESPNOW {'N','A','B','O'}
 
 

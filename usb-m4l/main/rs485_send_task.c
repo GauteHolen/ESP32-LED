@@ -40,7 +40,7 @@ void rs485_send_task(void *pvParameter){
 
     ESP_LOGI(TAG, "Starting ESP-NOW send task...");
     ESP_LOGI(TAG, "Payload size: %d", sizeof(fixture_state_t));
-    fixture_state_t local_payload;
+    static fixture_state_t local_payload;
     bool local_new_payload = false;
     int result=0;
     int local_time_since_change = 0;  
@@ -72,7 +72,6 @@ void rs485_send_task(void *pvParameter){
             // ESP_LOGI(TAG, "Sequence: %d, Sending updated values...", broadcast_message.sequence);
             take_messages_mutex();
                 local_payload = broadcast_message;
-                vTaskDelay(1);
                 reset_all_triggers(&broadcast_message);
                 reset_change_flags(&broadcast_message);
                 broadcast_message.sequence++;

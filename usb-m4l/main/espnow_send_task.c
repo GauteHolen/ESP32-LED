@@ -86,7 +86,6 @@ void espnow_send_task(void *pvParameter) {
             // ESP_LOGI(TAG, "Sequence: %d, Sending updated values...", broadcast_message.sequence);
             take_messages_mutex();
                 local_msg = broadcast_message;
-                vTaskDelay(1);
                 reset_all_triggers(&broadcast_message);
                 broadcast_message.sequence++;
             give_messages_mutex();

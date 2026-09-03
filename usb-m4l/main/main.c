@@ -56,7 +56,7 @@ void app_main(void) {
     if (rs_485_mode) {
         setup_uart_rs485();
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(100));
-        xTaskCreate(rs485_send_task, "rs485_send_task", 4096, NULL, configMAX_PRIORITIES-1, NULL);
+        xTaskCreate(rs485_send_task, "rs485_send_task", 8192, NULL, configMAX_PRIORITIES-1, NULL);
     }
     else if (espnow_mode) {
         init_espnow(broadcastAddr);
@@ -106,10 +106,6 @@ void app_main(void) {
             uart_statistics.read_per_cycle = 0;
         }
 
-
-
-        
-
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(wait_time));
         main_cycles++;
 
@@ -118,7 +114,7 @@ void app_main(void) {
         increment_time_since_change((int)(end - start));
         if (time_elapsed_received > 1000000 && LOG_UART) {
             //ESP_LOGI(TAG, "Received %d messages, updated payload %d times in %d ms, total read time: %d ms, total copy time: %d ms, total send time: %d ms", received_per_sec, payload_updates, time_elapsed_received / 1000, total_read / 1000, total_copy / 1000, total_send_time / 1000);
-            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", uart_statistics.received_per_sec, uart_statistics.maxlen, uart_statistics.event_count, payload_updates, sent_per_sec, time_elapsed_received / 1000, uart_statistics.total_read / 1000, total_copy / 1000, total_send_time / 1000, main_cycles, send_task_cycles);
+            ESP_LOGI(TAG, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d", uart_statistics.received_per_sec, uart_statistics.maxlen, uart_statistics.event_count, payload_updates, sent_per_sec, time_elapsed_received / 1000, uart_statistics.total_read / 1000, total_copy / 1000, total_send_time / 1000, main_cycles, send_task_cycles);
             uart_statistics.received_per_sec = 0;
             sent_per_sec = 0;
             time_elapsed_received = 0;

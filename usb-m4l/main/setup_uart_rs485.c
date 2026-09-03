@@ -14,7 +14,7 @@ void setup_uart_rs485(void)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
 
-    uart_driver_install(UART_PORT, 2048, 0, 0, NULL, 0);
+    uart_driver_install(UART_PORT, 2048, 2048, 0, NULL, 0);
     uart_param_config(UART_PORT, &uart_config);
     uart_set_pin(UART_PORT, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     uart_set_mode(UART_PORT, UART_MODE_RS485_HALF_DUPLEX);
